@@ -1,13 +1,9 @@
 # Car Store - Assignment 3
 
-## Team Members
+## Team Members - NOVA
 - **Nurdaulet Usenbai** - Proposal Lead & Cars Module
 - **Nurbol** - ERD, Use-Case & Orders Module
 - **Ehson Usmanov** - Architecture & Auth Module
-
-## Documentation
-- [ERD Diagram](docs/ERD.pdf) - Database schema by Nurbol
-- [Use-Case Diagram](docs/UseCase.png) - User scenarios by Nurbol
 
 ## How to Run
 ```bash
