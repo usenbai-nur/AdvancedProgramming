@@ -34,7 +34,7 @@ The following diagrams are provided to describe the system design:
 [ERD Diagram](ERD.pdf)
 
 - **UML Diagram** — represents system classes and their relationships  
-[UML Diagram](uml.png) (to be added by Ehson)
+[UML Diagram](uml.png)
 
 ---
 
