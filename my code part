@@ -1,0 +1,150 @@
+/cmd
+  /server
+    main.go
+
+/internal
+  /config
+  /db
+  /common        (ошибки, ответы, middleware utils)
+  /cars          <-- my module
+    model.go
+    dto.go
+    handler.go
+    service.go
+    repository.go
+    routes.go
+    validation.go
+  /auth          (Эхсон)
+  /orders        (Нурбол)
+  /favorites     (опционально, можно Нурболу или тебе)
+
+/docs ...
+
+"----------------------------------------------------------------"
+
+3) Что именно я должен реализовать Cars/Catalog (функции)
+3.1 Public (для Guest/User)
+
+List cars (каталог)
+
+с фильтрами: brand, model, minPrice, maxPrice, minYear, maxYear, bodyType, status
+
+Car details (карточка авто)
+
+полная инфа + картинки
+
+3.2 Admin (CRUD)
+
+Create car
+
+Update car
+
+Delete car
+
+Update car status (available/reserved/sold)
+
+"-----------------------------------------------------------------"
+Public
+
+GET /cars — список + фильтры
+
+GET /cars/{id} — детали
+
+"--------------------------"
+Admin (требует роль admin)
+
+POST /admin/cars
+
+PUT /admin/cars/{id}
+
+DELETE /admin/cars/{id}
+
+PATCH /admin/cars/{id}/status
+
+POST /admin/cars/{id}/images
+
+
+
+
+"============================================================="
+
+        MODEL.GO
+
+Сущность Car (+ CarImage) как структура домена.
+
+"---------------------------"
+
+        DTO.GO
+Структуры для API:
+
+CreateCarRequest
+
+UpdateCarRequest
+
+CarResponse
+
+CarListItemResponse
+
+CarFilter (параметры фильтрации)
+
+"-------------------------------"
+
+        REPOSITORY.GO
+
+Функции уровня БД:
+
+CreateCar
+
+GetCarByID
+
+ListCars(filter)
+
+UpdateCar
+
+DeleteCar
+
+SetCarStatus
+
+AddCarImage
+
+"--------------------------------"
+
+        SERVICE.GO
+
+Бизнес-логика:
+
+проверка валидности данных (цена > 0, год адекватный)
+
+правила статусов
+
+поведение при удалении (если есть orders)
+
+сбор “details” (car + images)
+
+"----------------------------------"
+
+        HANDLER
+
+HTTP:
+
+читает query params / JSON body
+
+вызывает service
+
+возвращает JSON ответы и коды
+
+"---------------------------------"
+
+        ROUTES.GO
+
+Регистрирует маршруты:
+
+public routes
+
+admin routes (под middleware)
+
+"---------------------------------"
+
+        VALIDATION.GO
+
+Функции валидации полей и фильтров.
