@@ -1,85 +1,83 @@
 package repositories
 
 import (
-	"FinalProject/internal/orders/models"
+	"context"
 	"errors"
-	"sync"
 	"time"
+
+	"AdvancedProgramming/internal/infrastructure"
+	"AdvancedProgramming/internal/orders/models"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-type OrderRepository struct {
-	mu     sync.RWMutex
-	orders map[int]*models.Order
-	lastID int
-}
+type OrderRepository struct{}
 
-func NewOrderRepository() *OrderRepository {
-	return &OrderRepository{
-		orders: make(map[int]*models.Order),
-	}
-}
+func NewOrderRepository() OrderRepository { return OrderRepository{} }
 
-func (r *OrderRepository) Create(order *models.Order) (*models.Order, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.lastID++
-	order.ID = r.lastID
-	now := time.Now()
-	order.CreatedAt = now
-	order.UpdatedAt = now
+func (r OrderRepository) Create(order models.Order) (models.Order, error) {
+	order.CreatedAt = time.Now()
+	order.UpdatedAt = time.Now()
 	if order.Status == "" {
 		order.Status = "pending"
 	}
 
-	r.orders[order.ID] = order
-	return order, nil
-}
-
-func (r *OrderRepository) GetByID(id int) (*models.Order, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	order, ok := r.orders[id]
-	if !ok {
-		return nil, errors.New("order not found")
+	_, err := infrastructure.Database.Collection("orders").InsertOne(context.TODO(), order)
+	if err != nil {
+		return models.Order{}, err
 	}
 	return order, nil
 }
 
-func (r *OrderRepository) GetAll() ([]*models.Order, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r OrderRepository) GetByID(id int) (models.Order, error) {
+	var order models.Order
+	err := infrastructure.Database.Collection("orders").FindOne(
+		context.TODO(),
+		bson.M{"id": id},
+	).Decode(&order)
 
-	result := make([]*models.Order, 0, len(r.orders))
-	for _, o := range r.orders {
-		result = append(result, o)
+	if err != nil {
+		return models.Order{}, errors.New("order not found")
 	}
-	return result, nil
+	return order, nil
 }
 
-func (r *OrderRepository) GetByUserID(userID int) ([]*models.Order, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var result []*models.Order
-	for _, o := range r.orders {
-		if o.UserID == userID {
-			result = append(result, o)
-		}
+func (r OrderRepository) GetAll() ([]models.Order, error) {
+	cursor, err := infrastructure.Database.Collection("orders").Find(context.TODO(), bson.M{})
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	var orders []models.Order
+	if err = cursor.All(context.TODO(), &orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
 }
 
-func (r *OrderRepository) UpdateStatus(id int, status string) (*models.Order, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	order, ok := r.orders[id]
-	if !ok {
-		return nil, errors.New("order not found")
+func (r OrderRepository) GetByUserID(userID int) ([]models.Order, error) {
+	cursor, err := infrastructure.Database.Collection("orders").Find(
+		context.TODO(),
+		bson.M{"userid": userID},
+	)
+	if err != nil {
+		return nil, err
 	}
+	var orders []models.Order
+	return orders, cursor.All(context.TODO(), &orders)
+}
+
+func (r OrderRepository) UpdateStatus(id int, status string) (models.Order, error) {
+	var order models.Order
+	err := infrastructure.Database.Collection("orders").FindOne(
+		context.TODO(), bson.M{"id": id},
+	).Decode(&order)
+	if err != nil {
+		return models.Order{}, errors.New("order not found")
+	}
+
 	order.Status = status
 	order.UpdatedAt = time.Now()
-	return order, nil
+	_, err = infrastructure.Database.Collection("orders").ReplaceOne(
+		context.TODO(), bson.M{"id": id}, order,
+	)
+	return order, err
 }

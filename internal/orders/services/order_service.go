@@ -1,8 +1,8 @@
 package services
 
 import (
-	"FinalProject/internal/orders/models"
-	"FinalProject/internal/orders/repositories"
+	"AdvancedProgramming/internal/orders/models"
+	"AdvancedProgramming/internal/orders/repositories"
 	"errors"
 	"log"
 	"time"
@@ -25,9 +25,7 @@ func NewOrderService(repo *repositories.OrderRepository) *OrderService {
 			"completed": true,
 		},
 	}
-
 	go s.backgroundProcessor()
-
 	return s
 }
 
@@ -40,12 +38,12 @@ func (s *OrderService) backgroundProcessor() {
 	}
 }
 
-func (s *OrderService) CreateOrder(userID, carID int, comment string) (*models.Order, error) {
+func (s *OrderService) CreateOrder(userID, carID int, comment string) (models.Order, error) {
 	if userID <= 0 || carID <= 0 {
-		return nil, errors.New("invalid user_id or car_id")
+		return models.Order{}, errors.New("invalid userid or carid")
 	}
 
-	order := &models.Order{
+	order := models.Order{
 		UserID:  userID,
 		CarID:   carID,
 		Comment: comment,
@@ -54,31 +52,32 @@ func (s *OrderService) CreateOrder(userID, carID int, comment string) (*models.O
 
 	created, err := s.repo.Create(order)
 	if err != nil {
-		return nil, err
+		return models.Order{}, err
 	}
 
-	go func() {
-		s.processChan <- created.ID
-	}()
-
+	go func() { s.processChan <- created.ID }()
 	return created, nil
 }
 
-func (s *OrderService) GetOrder(id int) (*models.Order, error) {
-	return s.repo.GetByID(id)
+func (s *OrderService) GetOrder(id int) (models.Order, error) {
+	order, err := s.repo.GetByID(id)
+	if err != nil {
+		return models.Order{}, err
+	}
+	return order, nil
 }
 
-func (s *OrderService) GetAllOrders() ([]*models.Order, error) {
+func (s *OrderService) GetAllOrders() ([]models.Order, error) {
 	return s.repo.GetAll()
 }
 
-func (s *OrderService) GetUserOrders(userID int) ([]*models.Order, error) {
+func (s *OrderService) GetUserOrders(userID int) ([]models.Order, error) {
 	return s.repo.GetByUserID(userID)
 }
 
-func (s *OrderService) UpdateStatus(id int, status string) (*models.Order, error) {
+func (s *OrderService) UpdateStatus(id int, status string) (models.Order, error) {
 	if !s.validStatuses[status] {
-		return nil, errors.New("invalid status")
+		return models.Order{}, errors.New("invalid status")
 	}
 	return s.repo.UpdateStatus(id, status)
 }

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"FinalProject/internal/orders/services"
+	"AdvancedProgramming/internal/orders/services"
 	"encoding/json"
 	"net/http"
 	"strconv"
