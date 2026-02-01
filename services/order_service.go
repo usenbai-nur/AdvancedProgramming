@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"AdvancedProgramming/models"
-	"AdvancedProgramming/repositories"
+	"FinalProject/models"
+	"FinalProject/repositories"
 )
 
 type OrderService struct {

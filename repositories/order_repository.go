@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"AdvancedProgramming/models"
+	"FinalProject/models"
 )
 
 type OrderRepository struct {

@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"AdvancedProgramming/handlers"
-	"AdvancedProgramming/repositories"
-	"AdvancedProgramming/services"
+	"FinalProject/handlers"
+	"FinalProject/repositories"
+	"FinalProject/services"
 )
 
 func main() {
