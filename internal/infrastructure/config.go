@@ -1,9 +1,21 @@
 package infrastructure
 
+import "os"
+
 type Config struct {
-	Port string
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
 }
 
-func LoadConfig() *Config {
-	return &Config{Port: ":8080"}
+func LoadConfig() Config {
+	return Config{
+		DBHost:     os.Getenv("DB_HOST"),
+		DBPort:     os.Getenv("DB_PORT"),
+		DBUser:     os.Getenv("DB_USER"),
+		DBPassword: os.Getenv("DB_PASSWORD"),
+		DBName:     os.Getenv("DB_NAME"),
+	}
 }

@@ -1,2 +1,15 @@
 # IDE files
 .idea/
+
+# Секреты
+.env
+secrets/
+*.key
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
