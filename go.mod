@@ -1,4 +1,3 @@
-module awesomeProject4
+module car-store
 
-go 1.25
-// hello go
+go 1.25.6
