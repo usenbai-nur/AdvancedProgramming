@@ -1,11 +1,10 @@
 package repositories
 
 import (
+	"FinalProject/internal/orders/models"
 	"errors"
 	"sync"
 	"time"
-
-	"FinalProject/models"
 )
 
 type OrderRepository struct {

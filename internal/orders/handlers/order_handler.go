@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"FinalProject/internal/orders/services"
 	"encoding/json"
 	"net/http"
 	"strconv"
-
-	"FinalProject/services"
 )
 
 type OrderHandler struct {

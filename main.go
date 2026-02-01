@@ -5,51 +5,45 @@ import (
 	"log"
 	"net/http"
 
-	"FinalProject/handlers"
-	"FinalProject/repositories"
-	"FinalProject/services"
+	"FinalProject/internal/orders/handlers"
+	"FinalProject/internal/orders/repositories"
+	"FinalProject/internal/orders/services"
 )
 
 func main() {
 	mux := http.NewServeMux()
 
-	// ==== Инициализация модулей ====
-
-	// Orders module (твоя часть)
+	// Orders module
 	orderRepo := repositories.NewOrderRepository()
 	orderService := services.NewOrderService(orderRepo)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
-	// ==== Роуты ====
-
-	// Главная страница (как было)
+	// Main page
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Car Store - Team: Nurdaulet, Nurbol, Ehson")
 	})
 
-	// Cars – пока просто заглушка (Нурдаулет)
 	mux.HandleFunc("/cars", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Cars Module - Nurdaulet")
 	})
 
-	// Auth – заглушка (Эхсон)
 	mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Auth Module - Ehson")
 	})
 
-	// ===== ORDERS API (твоя реальная логика) =====
+	// ===== ORDERS API =====
 
 	// /orders:
-	// POST  /orders                – создать заказ (JSON)
-	// GET   /orders?id=1           – получить один заказ
-	// GET   /orders?user_id=1      – заказы пользователя
-	// GET   /orders                – все заказы
+	// POST  /orders                – create order (JSON)
+	// GET   /orders?id=1           – get one order
+	// GET   /orders?user_id=1      – user's orders
+	// GET   /orders                – all orders
 	mux.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			orderHandler.CreateOrder(w, r)
 		case http.MethodGet:
-			// приоритет: user_id → id → все
+			// priority: user_id → id → все
 			if r.URL.Query().Get("user_id") != "" {
 				orderHandler.GetUserOrders(w, r)
 				return
@@ -64,7 +58,7 @@ func main() {
 		}
 	})
 
-	// PUT /orders/status?id=1 – обновить статус
+	// PUT /orders/status?id=1 – update status
 	mux.HandleFunc("/orders/status", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -73,7 +67,7 @@ func main() {
 		orderHandler.UpdateOrderStatus(w, r)
 	})
 
-	// ===== Запуск сервера =====
+	// ===== Start server =====
 
 	fmt.Println("Car Store API - http://localhost:8080")
 	log.Println("Server is running on :8080")

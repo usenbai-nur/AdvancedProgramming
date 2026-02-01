@@ -1,12 +1,11 @@
 package services
 
 import (
+	"FinalProject/internal/orders/models"
+	"FinalProject/internal/orders/repositories"
 	"errors"
 	"log"
 	"time"
-
-	"FinalProject/models"
-	"FinalProject/repositories"
 )
 
 type OrderService struct {
