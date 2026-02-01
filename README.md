@@ -1,4 +1,4 @@
-# Car Store - Assignment 3
+# Car Store
 
 ## Team Members - NOVA
 - **Nurdaulet Usenbai** - Proposal Lead & Cars Module
