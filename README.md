@@ -7,20 +7,10 @@
 
 ## How to Run
 ```bash
-go run main.go
+go run cmd/server/main.go
 
 Open: http://localhost:8080
 
-Project Structure
-docs/ - Documentation and diagrams
-
-handlers/ - HTTP handlers
-
-services/ - Business logic
-
-repositories/ - Database layer
-
-models/ - Data models
 
 Git Branches
 nurbol-erd-usecase - ERD & Use-Case by Nurbol
