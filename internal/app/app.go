@@ -1,36 +1,92 @@
 package app
 
 import (
-	"car-store/internal/infrastructure"
 	"fmt"
+	"log"
 	"net/http"
-	// "car-store/internal/cars"
-	// "car-store/internal/orders"
+
+	"AdvancedProgramming/internal/infrastructure"
+
+	// Orders (Nurbol)
+	"AdvancedProgramming/internal/orders/handlers"
+	"AdvancedProgramming/internal/orders/repositories"
+	"AdvancedProgramming/internal/orders/services"
+
+	// Cars (Nurdaulet) — РАСКОММЕНТИРУЙ ПОСЛЕ MERGE
+	// "AdvancedProgramming/internal/cars"
 )
 
 func Run() {
-
-	config := infrastructure.LoadConfig()
-
-	// carsRepo := cars.NewRepository()
-	// ordersRepo := orders.NewRepository()
-
-	// orderChan := make(chan string) // Можно заменить на тип Order позже
-
-	// go orders.StartWorker(orderChan)
+	// ==== Infrastructure ====
+	if err := infrastructure.InitDatabase(); err != nil {
+		log.Fatal("Database init failed:", err)
+	}
+	defer infrastructure.CloseDatabase()
 
 	mux := http.NewServeMux()
 
-	// cars.RegisterRoutes(mux, carsRepo)
-	// orders.RegisterRoutes(mux, ordersRepo, orderChan)
-
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Server is up and running!"))
+	// ==== Root ====
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(
+			w,
+			"Car Store API\nTeam: Nurdaulet, Nurbol, Ehson\n\nEndpoints:\n"+
+				"- GET /health\n"+
+				"- GET/POST /cars\n"+
+				"- GET /cars/{id}\n"+
+				"- GET/POST /orders\n"+
+				"- PUT /orders/status\n",
+		)
 	})
 
-	fmt.Printf("Сервер запущен на порту %s\n", config.Port)
+	// ==== Health ====
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Server is up and running!"))
+	})
 
-	if err := http.ListenAndServe(config.Port, mux); err != nil {
-		fmt.Printf("Ошибка запуска сервера: %s\n", err)
-	}
+	// ==== ORDERS MODULE (Nurbol) ====
+	orderRepo := repositories.NewOrderRepository()
+	orderService := services.NewOrderService(&orderRepo)
+	orderHandler := handlers.NewOrderHandler(orderService)
+
+	mux.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			orderHandler.CreateOrder(w, r)
+
+		case http.MethodGet:
+			if r.URL.Query().Get("user_id") != "" {
+				orderHandler.GetUserOrders(w, r)
+				return
+			}
+			if r.URL.Query().Get("id") != "" {
+				orderHandler.GetOrder(w, r)
+				return
+			}
+			orderHandler.GetAllOrders(w, r)
+
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/orders/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		orderHandler.UpdateOrderStatus(w, r)
+	})
+
+	// ==== CARS MODULE (Nurdaulet) ====
+	// ВКЛЮЧИ ПОСЛЕ ТОГО, КАК ТЫ ВМЁРЖИШЬ nurdaulet-proposal В master
+	/*
+		carRepo := cars.NewRepository()
+		carService := cars.NewService(carRepo)
+		carHandler := cars.NewHandler(carService)
+		cars.RegisterRoutes(mux, carHandler)
+	*/
+
+	fmt.Println("Car Store API started at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
