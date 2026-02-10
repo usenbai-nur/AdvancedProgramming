@@ -1,6 +1,6 @@
 package main
 
-import "car-store/internal/app"
+import "AdvancedProgramming/internal/app"
 
 func main() {
 	app.Run()

@@ -1,36 +1,25 @@
 package app
 
 import (
-	"car-store/internal/infrastructure"
+	"AdvancedProgramming/internal/auth"
 	"fmt"
+	"log"
 	"net/http"
-	// "car-store/internal/cars"
-	// "car-store/internal/orders"
 )
 
 func Run() {
-
-	config := infrastructure.LoadConfig()
-
-	// carsRepo := cars.NewRepository()
-	// ordersRepo := orders.NewRepository()
-
-	// orderChan := make(chan string) // Можно заменить на тип Order позже
-
-	// go orders.StartWorker(orderChan)
-
 	mux := http.NewServeMux()
 
-	// cars.RegisterRoutes(mux, carsRepo)
-	// orders.RegisterRoutes(mux, ordersRepo, orderChan)
+	mux.HandleFunc("/register", auth.Register)
+	mux.HandleFunc("/login", auth.Login)
 
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Server is up and running!"))
+	pingHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := r.Context().Value("username")
+		fmt.Fprintf(w, "Status: authorized, User: %v", user)
 	})
 
-	fmt.Printf("Сервер запущен на порту %s\n", config.Port)
+	mux.Handle("/api/ping", auth.AuthMiddleware(pingHandler))
 
-	if err := http.ListenAndServe(config.Port, mux); err != nil {
-		fmt.Printf("Ошибка запуска сервера: %s\n", err)
-	}
+	fmt.Println("Server started at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
