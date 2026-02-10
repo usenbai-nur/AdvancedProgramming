@@ -54,3 +54,56 @@ func (s *Service) GetByID(id int) (Car, error) {
 func (s *Service) List() []Car {
 	return s.repo.List()
 }
+
+func (s *Service) Update(id int, req UpdateCarRequest) (Car, error) {
+	return s.repo.Update(id, func(current Car) (Car, error) {
+		updated := current
+
+		if req.Brand != nil {
+			v := strings.TrimSpace(*req.Brand)
+			if v == "" {
+				return Car{}, ErrValidation
+			}
+			updated.Brand = v
+		}
+		if req.Model != nil {
+			v := strings.TrimSpace(*req.Model)
+			if v == "" {
+				return Car{}, ErrValidation
+			}
+			updated.Model = v
+		}
+		if req.Year != nil {
+			if *req.Year < 1950 || *req.Year > time.Now().Year()+1 {
+				return Car{}, ErrValidation
+			}
+			updated.Year = *req.Year
+		}
+		if req.Price != nil {
+			if *req.Price <= 0 {
+				return Car{}, ErrValidation
+			}
+			updated.Price = *req.Price
+		}
+		if req.Mileage != nil {
+			if *req.Mileage < 0 {
+				return Car{}, ErrValidation
+			}
+			updated.Mileage = *req.Mileage
+		}
+		if req.Status != nil {
+			switch *req.Status {
+			case StatusAvailable, StatusReserved, StatusSold:
+				updated.Status = *req.Status
+			default:
+				return Car{}, ErrValidation
+			}
+		}
+
+		return updated, nil
+	})
+}
+
+func (s *Service) Delete(id int) error {
+	return s.repo.Delete(id)
+}

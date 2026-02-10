@@ -34,7 +34,7 @@ func InitDatabase() error {
 
 	Client = client
 	Database = client.Database("carstore")
-	log.Println("✅ Connected to MongoDB Atlas")
+	log.Println("Connected to MongoDB Atlas")
 	return nil
 }
 

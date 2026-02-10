@@ -5,19 +5,16 @@ import (
 	"log"
 	"net/http"
 
+	"AdvancedProgramming/internal/cars"
 	"AdvancedProgramming/internal/infrastructure"
 
 	// Orders (Nurbol)
 	"AdvancedProgramming/internal/orders/handlers"
 	"AdvancedProgramming/internal/orders/repositories"
 	"AdvancedProgramming/internal/orders/services"
-
-	// Cars (Nurdaulet) — РАСКОММЕНТИРУЙ ПОСЛЕ MERGE
-	// "AdvancedProgramming/internal/cars"
 )
 
 func Run() {
-	// ==== Infrastructure ====
 	if err := infrastructure.InitDatabase(); err != nil {
 		log.Fatal("Database init failed:", err)
 	}
@@ -25,26 +22,31 @@ func Run() {
 
 	mux := http.NewServeMux()
 
-	// ==== Root ====
+	// Health + Home
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(
 			w,
 			"Car Store API\nTeam: Nurdaulet, Nurbol, Ehson\n\nEndpoints:\n"+
 				"- GET /health\n"+
 				"- GET/POST /cars\n"+
-				"- GET /cars/{id}\n"+
+				"- GET/PUT/DELETE /cars/{id}\n"+
 				"- GET/POST /orders\n"+
 				"- PUT /orders/status\n",
 		)
 	})
 
-	// ==== Health ====
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Server is up and running!"))
 	})
 
-	// ==== ORDERS MODULE (Nurbol) ====
+	// Cars (Nurdaulet) - in-memory storage
+	carRepo := cars.NewRepository()
+	carService := cars.NewService(carRepo)
+	carHandler := cars.NewHandler(carService)
+	cars.RegisterRoutes(mux, carHandler)
+
+	// Orders (Nurbol)
 	orderRepo := repositories.NewOrderRepository()
 	orderService := services.NewOrderService(&orderRepo)
 	orderHandler := handlers.NewOrderHandler(orderService)
@@ -77,15 +79,6 @@ func Run() {
 		}
 		orderHandler.UpdateOrderStatus(w, r)
 	})
-
-	// ==== CARS MODULE (Nurdaulet) ====
-	// ВКЛЮЧИ ПОСЛЕ ТОГО, КАК ТЫ ВМЁРЖИШЬ nurdaulet-proposal В master
-	/*
-		carRepo := cars.NewRepository()
-		carService := cars.NewService(carRepo)
-		carHandler := cars.NewHandler(carService)
-		cars.RegisterRoutes(mux, carHandler)
-	*/
 
 	fmt.Println("Car Store API started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))

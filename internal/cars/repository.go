@@ -53,3 +53,33 @@ func (r *Repository) List() []Car {
 	}
 	return out
 }
+
+func (r *Repository) Update(id int, updateFn func(Car) (Car, error)) (Car, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, ok := r.items[id]
+	if !ok {
+		return Car{}, ErrNotFound
+	}
+
+	updated, err := updateFn(current)
+	if err != nil {
+		return Car{}, err
+	}
+
+	updated.ID = id
+	r.items[id] = updated
+	return updated, nil
+}
+
+func (r *Repository) Delete(id int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.items[id]; !ok {
+		return ErrNotFound
+	}
+	delete(r.items, id)
+	return nil
+}

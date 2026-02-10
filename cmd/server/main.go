@@ -63,7 +63,5 @@ func main() {
 
 	fmt.Println("Car Store API + MongoDB Atlas started!")
 	fmt.Println("http://localhost:8080")
-	fmt.Println("POST /orders - Create order")
-	fmt.Println("GET /orders?user_id=1 - orders users")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
