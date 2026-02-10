@@ -31,7 +31,7 @@ func Register(mux *http.ServeMux, carService *cars.Service) {
 	mux.HandleFunc("/ui/cars/new", h.carsNew)  // GET + POST
 	mux.HandleFunc("/ui/cars/", h.carsActions) // POST actions: delete/reserve
 
-	// Orders/Auth pages (placeholders to keep UI complete)
+	// Orders/Auth pages (placeholders)
 	mux.HandleFunc("/ui/orders", h.ordersList) // GET
 	mux.HandleFunc("/ui/login", h.login)       // GET
 	mux.HandleFunc("/ui/register", h.register) // GET
@@ -40,7 +40,6 @@ func Register(mux *http.ServeMux, carService *cars.Service) {
 func mustLoadTemplates() *template.Template {
 	t := template.New("")
 
-	// Parse layout + all section templates
 	patterns := []string{
 		filepath.Join("web", "templates", "*.html"),
 		filepath.Join("web", "templates", "cars", "*.html"),
@@ -129,7 +128,6 @@ func (h *Handler) carsActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Path example: /ui/cars/12/delete
 	path := strings.TrimPrefix(r.URL.Path, "/ui/cars/")
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) != 2 {

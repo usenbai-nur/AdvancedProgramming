@@ -7,11 +7,10 @@ import (
 
 	"AdvancedProgramming/internal/cars"
 	"AdvancedProgramming/internal/infrastructure"
-
-	// Orders (Nurbol)
 	"AdvancedProgramming/internal/orders/handlers"
 	"AdvancedProgramming/internal/orders/repositories"
 	"AdvancedProgramming/internal/orders/services"
+	"AdvancedProgramming/internal/webui"
 )
 
 func Run() {
@@ -22,7 +21,7 @@ func Run() {
 
 	mux := http.NewServeMux()
 
-	// Health + Home
+	// Home
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(
 			w,
@@ -31,10 +30,14 @@ func Run() {
 				"- GET/POST /cars\n"+
 				"- GET/PUT/DELETE /cars/{id}\n"+
 				"- GET/POST /orders\n"+
-				"- PUT /orders/status\n",
+				"- PUT /orders/status\n"+
+				"\nUI:\n"+
+				"- GET /ui/cars\n"+
+				"- GET /ui/cars/new\n",
 		)
 	})
 
+	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Server is up and running!"))
@@ -45,6 +48,9 @@ func Run() {
 	carService := cars.NewService(carRepo)
 	carHandler := cars.NewHandler(carService)
 	cars.RegisterRoutes(mux, carHandler)
+
+	// Web UI (templates + css)
+	webui.Register(mux, carService)
 
 	// Orders (Nurbol)
 	orderRepo := repositories.NewOrderRepository()
