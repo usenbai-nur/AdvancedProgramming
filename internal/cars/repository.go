@@ -2,6 +2,7 @@ package cars
 
 import (
 	"errors"
+	"sort"
 	"sync"
 	"sync/atomic"
 )
@@ -51,5 +52,40 @@ func (r *Repository) List() []Car {
 	for _, c := range r.items {
 		out = append(out, c)
 	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
+}
+
+func (r *Repository) Update(id int, updateFn func(Car) (Car, error)) (Car, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, ok := r.items[id]
+	if !ok {
+		return Car{}, ErrNotFound
+	}
+
+	updated, err := updateFn(current)
+	if err != nil {
+		return Car{}, err
+	}
+
+	// protect system fields
+	updated.ID = id
+	updated.CreatedAt = current.CreatedAt
+
+	r.items[id] = updated
+	return updated, nil
+}
+
+func (r *Repository) Delete(id int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.items[id]; !ok {
+		return ErrNotFound
+	}
+	delete(r.items, id)
+	return nil
 }

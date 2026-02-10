@@ -27,7 +27,9 @@ func (h *Handler) Cars(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req CreateCarRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, httpx.Err("bad_json", "Invalid JSON body"))
 			return
 		}
@@ -51,14 +53,8 @@ func (h *Handler) Cars(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GET /cars/{id}
+// GET/PUT/DELETE /cars/{id}
 func (h *Handler) CarByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.Err("method_not_allowed", "Method not allowed"))
-		return
-	}
-
-	// r.URL.Path example: /cars/123
 	path := strings.TrimPrefix(r.URL.Path, "/cars/")
 	if path == "" || strings.Contains(path, "/") {
 		httpx.WriteError(w, http.StatusNotFound, httpx.Err("not_found", "Not found"))
@@ -71,15 +67,61 @@ func (h *Handler) CarByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	car, err := h.svc.GetByID(id)
-	if err != nil {
-		if err == ErrNotFound {
-			httpx.WriteError(w, http.StatusNotFound, httpx.Err("not_found", "Car not found"))
+	switch r.Method {
+	case http.MethodGet:
+		car, err := h.svc.GetByID(id)
+		if err != nil {
+			if err == ErrNotFound {
+				httpx.WriteError(w, http.StatusNotFound, httpx.Err("not_found", "Car not found"))
+				return
+			}
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.Err("server_error", "Internal server error"))
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.Err("server_error", "Internal server error"))
+		httpx.WriteJSON(w, http.StatusOK, car)
+		return
+
+	case http.MethodPut:
+		var req UpdateCarRequest
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.Err("bad_json", "Invalid JSON body"))
+			return
+		}
+
+		updated, err := h.svc.Update(id, req)
+		if err != nil {
+			if err == ErrNotFound {
+				httpx.WriteError(w, http.StatusNotFound, httpx.Err("not_found", "Car not found"))
+				return
+			}
+			if err == ErrValidation {
+				httpx.WriteError(w, http.StatusBadRequest, httpx.Err("validation_error", "Invalid car fields"))
+				return
+			}
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.Err("server_error", "Internal server error"))
+			return
+		}
+
+		httpx.WriteJSON(w, http.StatusOK, updated)
+		return
+
+	case http.MethodDelete:
+		if err := h.svc.Delete(id); err != nil {
+			if err == ErrNotFound {
+				httpx.WriteError(w, http.StatusNotFound, httpx.Err("not_found", "Car not found"))
+				return
+			}
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.Err("server_error", "Internal server error"))
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return
+
+	default:
+		httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.Err("method_not_allowed", "Method not allowed"))
 		return
 	}
-
-	httpx.WriteJSON(w, http.StatusOK, car)
 }

@@ -1,0 +1,51 @@
+{{ define "cars_list.html" }}
+{{ template "layout.html" . }}
+{{ end }}
+
+{{ define "content" }}
+<div class="row">
+    <h1>Cars</h1>
+    <a class="btn" href="/ui/cars/new">Add Car</a>
+</div>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Brand</th>
+        <th>Model</th>
+        <th>Year</th>
+        <th>Price</th>
+        <th>Mileage</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    {{ if .Cars }}
+    {{ range .Cars }}
+    <tr>
+        <td>{{ .ID }}</td>
+        <td>{{ .Brand }}</td>
+        <td>{{ .Model }}</td>
+        <td>{{ .Year }}</td>
+        <td>{{ .Price }}</td>
+        <td>{{ .Mileage }}</td>
+        <td><span class="pill">{{ .Status }}</span></td>
+        <td class="actions">
+            <form method="post" action="/ui/cars/{{ .ID }}/reserve" style="display:inline;">
+                <button class="btn btn-secondary" type="submit">Reserve</button>
+            </form>
+            <form method="post" action="/ui/cars/{{ .ID }}/delete" style="display:inline;">
+                <button class="btn btn-danger" type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {{ end }}
+    {{ else }}
+    <tr><td colspan="8" class="muted">No cars yet. Click “Add Car”.</td></tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ end }}
