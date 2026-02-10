@@ -22,82 +22,111 @@ func Run() {
 
 	mux := http.NewServeMux()
 
-	// Public endpoints
+	// Home
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(
-			w,
-			"Car Store API\nTeam: Nurdaulet, Nurbol, Ehson\n\nEndpoints:\n"+
-				"- GET /health\n"+
-				"- POST /auth/register\n"+
-				"- POST /auth/login\n"+
-				"- GET/POST /cars (protected)\n"+
-				"- GET/PUT/DELETE /cars/{id} (protected)\n"+
-				"- GET/POST /orders (protected)\n"+
-				"- PUT /orders/status (protected)\n"+
-				"\nUI:\n"+
-				"- GET /ui/cars\n"+
-				"- GET /ui/cars/new\n"+
-				"- GET /ui/orders\n"+
-				"- GET /ui/login\n"+
-				"- GET /ui/register\n",
+		fmt.Fprintf(w,
+			"Car Store API\nTeam: Nurdaulet, Nurbol, Ehson\n\n"+
+				"=== Endpoints ===\n\n"+
+				"Health:\n"+
+				"  GET  /health\n\n"+
+				"Auth:\n"+
+				"  POST /auth/register\n"+
+				"  POST /auth/login\n\n"+
+				"Cars (Nurdaulet):\n"+
+				"  POST   /cars\n"+
+				"  GET    /cars\n"+
+				"  GET    /cars/{id}\n"+
+				"  PUT    /cars/{id}\n"+
+				"  DELETE /cars/{id}\n\n"+
+				"Orders (Nurbol):\n"+
+				"  POST   /orders\n"+
+				"  GET    /orders\n"+
+				"  GET    /orders/{id}\n"+
+				"  PUT    /orders/{id}\n"+
+				"  DELETE /orders/{id}\n"+
+				"  GET    /users/{id}/orders\n"+
+				"  GET    /orders/stats\n"+
+				"  GET    /orders/search?q=query\n\n"+
+				"UI:\n"+
+				"  GET /ui/cars\n"+
+				"  GET /ui/cars/new\n"+
+				"  GET /ui/orders\n"+
+				"  GET /ui/login\n"+
+				"  GET /ui/register\n",
 		)
 	})
 
+	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("Server is up and running!"))
+		_, _ = w.Write([]byte("✅ Server is up and running!\n"))
 	})
 
 	// Auth (public)
 	mux.HandleFunc("/auth/register", auth.Register)
 	mux.HandleFunc("/auth/login", auth.Login)
 
-	// Cars (protected API)
+	// Cars (Nurdaulet) - in-memory storage
 	carRepo := cars.NewRepository()
 	carService := cars.NewService(carRepo)
 	carHandler := cars.NewHandler(carService)
+	cars.RegisterRoutes(mux, carHandler)
 
-	// wrap handlers with middleware (http.Handler)
-	mux.Handle("/cars", auth.AuthMiddleware(http.HandlerFunc(carHandler.Cars)))
-	mux.Handle("/cars/", auth.AuthMiddleware(http.HandlerFunc(carHandler.CarByID)))
-
-	// Web UI (public UI; if you want protect it too, we can wrap /ui/* later)
+	// Web UI
 	webui.Register(mux, carService)
 
-	// Orders (protected API)
+	// Orders (Nurbol) - MongoDB + REST
 	orderRepo := repositories.NewOrderRepository()
 	orderService := services.NewOrderService(&orderRepo)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
-	mux.Handle("/orders", auth.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			orderHandler.CreateOrder(w, r)
+	// IMPORTANT: register specific routes first!
 
-		case http.MethodGet:
-			if r.URL.Query().Get("user_id") != "" {
-				orderHandler.GetUserOrders(w, r)
-				return
-			}
-			if r.URL.Query().Get("id") != "" {
-				orderHandler.GetOrder(w, r)
-				return
-			}
-			orderHandler.GetAllOrders(w, r)
-
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})))
-
-	mux.Handle("/orders/status", auth.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
+	// GET /orders/stats
+	mux.HandleFunc("/orders/stats", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		orderHandler.UpdateOrderStatus(w, r)
-	})))
+		orderHandler.GetOrderStats(w, r)
+	})
+
+	// GET /orders/search?q=query
+	mux.HandleFunc("/orders/search", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		orderHandler.SearchOrders(w, r)
+	})
+
+	// POST /orders, GET /orders
+	mux.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			orderHandler.CreateOrder(w, r)
+		case http.MethodGet:
+			orderHandler.GetAllOrders(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// GET/PUT/DELETE /orders/{id}
+	mux.HandleFunc("/orders/", func(w http.ResponseWriter, r *http.Request) {
+		orderHandler.HandleOrderByID(w, r)
+	})
+
+	// GET /users/{id}/orders
+	mux.HandleFunc("/users/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		orderHandler.GetUserOrders(w, r)
+	})
 
 	fmt.Println("Car Store API started at http://localhost:8080")
+	fmt.Println("Orders Stats: http://localhost:8080/orders/stats")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
