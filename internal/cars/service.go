@@ -66,6 +66,7 @@ func (s *Service) Update(id int, req UpdateCarRequest) (Car, error) {
 			}
 			updated.Brand = v
 		}
+
 		if req.Model != nil {
 			v := strings.TrimSpace(*req.Model)
 			if v == "" {
@@ -73,24 +74,28 @@ func (s *Service) Update(id int, req UpdateCarRequest) (Car, error) {
 			}
 			updated.Model = v
 		}
+
 		if req.Year != nil {
 			if *req.Year < 1950 || *req.Year > time.Now().Year()+1 {
 				return Car{}, ErrValidation
 			}
 			updated.Year = *req.Year
 		}
+
 		if req.Price != nil {
 			if *req.Price <= 0 {
 				return Car{}, ErrValidation
 			}
 			updated.Price = *req.Price
 		}
+
 		if req.Mileage != nil {
 			if *req.Mileage < 0 {
 				return Car{}, ErrValidation
 			}
 			updated.Mileage = *req.Mileage
 		}
+
 		if req.Status != nil {
 			switch *req.Status {
 			case StatusAvailable, StatusReserved, StatusSold:

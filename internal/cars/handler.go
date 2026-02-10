@@ -27,7 +27,9 @@ func (h *Handler) Cars(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req CreateCarRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, httpx.Err("bad_json", "Invalid JSON body"))
 			return
 		}
@@ -53,7 +55,6 @@ func (h *Handler) Cars(w http.ResponseWriter, r *http.Request) {
 
 // GET/PUT/DELETE /cars/{id}
 func (h *Handler) CarByID(w http.ResponseWriter, r *http.Request) {
-	// r.URL.Path example: /cars/123
 	path := strings.TrimPrefix(r.URL.Path, "/cars/")
 	if path == "" || strings.Contains(path, "/") {
 		httpx.WriteError(w, http.StatusNotFound, httpx.Err("not_found", "Not found"))
@@ -82,7 +83,9 @@ func (h *Handler) CarByID(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPut:
 		var req UpdateCarRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, httpx.Err("bad_json", "Invalid JSON body"))
 			return
 		}

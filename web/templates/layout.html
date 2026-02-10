@@ -1,0 +1,28 @@
+{{ define "layout.html" }}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/static/styles.css" />
+    <title>{{ .Title }}</title>
+</head>
+<body>
+<header class="nav">
+    <div class="container nav-inner">
+        <div class="brand">Car Store</div>
+        <nav class="links">
+            <a href="/ui/cars">Cars</a>
+            <a href="/ui/orders">Orders</a>
+            <a href="/ui/login">Login</a>
+            <a href="/ui/register">Register</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {{ template "content" . }}
+</main>
+</body>
+</html>
+{{ end }}

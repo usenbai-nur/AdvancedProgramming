@@ -5,13 +5,13 @@ import (
 	"log"
 	"net/http"
 
+	"AdvancedProgramming/internal/auth"
 	"AdvancedProgramming/internal/cars"
 	"AdvancedProgramming/internal/infrastructure"
-
-	// Orders (Nurbol)
 	"AdvancedProgramming/internal/orders/handlers"
 	"AdvancedProgramming/internal/orders/repositories"
 	"AdvancedProgramming/internal/orders/services"
+	"AdvancedProgramming/internal/webui"
 )
 
 func Run() {
@@ -22,13 +22,16 @@ func Run() {
 
 	mux := http.NewServeMux()
 
-	// Health + Home
+	// Home
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w,
 			"Car Store API\nTeam: Nurdaulet, Nurbol, Ehson\n\n"+
 				"=== Endpoints ===\n\n"+
 				"Health:\n"+
 				"  GET  /health\n\n"+
+				"Auth:\n"+
+				"  POST /auth/register\n"+
+				"  POST /auth/login\n\n"+
 				"Cars (Nurdaulet):\n"+
 				"  POST   /cars\n"+
 				"  GET    /cars\n"+
@@ -43,14 +46,25 @@ func Run() {
 				"  DELETE /orders/{id}\n"+
 				"  GET    /users/{id}/orders\n"+
 				"  GET    /orders/stats\n"+
-				"  GET    /orders/search?q=query\n",
+				"  GET    /orders/search?q=query\n\n"+
+				"UI:\n"+
+				"  GET /ui/cars\n"+
+				"  GET /ui/cars/new\n"+
+				"  GET /ui/orders\n"+
+				"  GET /ui/login\n"+
+				"  GET /ui/register\n",
 		)
 	})
 
+	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("✅ Server is up and running!"))
+		_, _ = w.Write([]byte("✅ Server is up and running!\n"))
 	})
+
+	// Auth (public)
+	mux.HandleFunc("/auth/register", auth.Register)
+	mux.HandleFunc("/auth/login", auth.Login)
 
 	// Cars (Nurdaulet) - in-memory storage
 	carRepo := cars.NewRepository()
@@ -58,14 +72,17 @@ func Run() {
 	carHandler := cars.NewHandler(carService)
 	cars.RegisterRoutes(mux, carHandler)
 
-	// Orders (Nurbol) - MongoDB + RESTful endpoints
+	// Web UI
+	webui.Register(mux, carService)
+
+	// Orders (Nurbol) - MongoDB + REST
 	orderRepo := repositories.NewOrderRepository()
 	orderService := services.NewOrderService(&orderRepo)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
-	// ВАЖНО: Регистрируем специфичные роуты ПЕРВЫМИ!
+	// IMPORTANT: register specific routes first!
 
-	// GET /orders/stats - статистика
+	// GET /orders/stats
 	mux.HandleFunc("/orders/stats", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -74,7 +91,7 @@ func Run() {
 		orderHandler.GetOrderStats(w, r)
 	})
 
-	// GET /orders/search?q=query - поиск
+	// GET /orders/search?q=query
 	mux.HandleFunc("/orders/search", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -83,7 +100,7 @@ func Run() {
 		orderHandler.SearchOrders(w, r)
 	})
 
-	// POST /orders, GET /orders - базовая коллекция
+	// POST /orders, GET /orders
 	mux.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
@@ -95,12 +112,12 @@ func Run() {
 		}
 	})
 
-	// GET/PUT/DELETE /orders/{id} - конкретный заказ (ПОСЛЕ специфичных!)
+	// GET/PUT/DELETE /orders/{id}
 	mux.HandleFunc("/orders/", func(w http.ResponseWriter, r *http.Request) {
 		orderHandler.HandleOrderByID(w, r)
 	})
 
-	// GET /users/{userId}/orders - заказы пользователя
+	// GET /users/{id}/orders
 	mux.HandleFunc("/users/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -109,7 +126,7 @@ func Run() {
 		orderHandler.GetUserOrders(w, r)
 	})
 
-	fmt.Println(" Car Store API started at http://localhost:8080")
-	fmt.Println(" Orders Stats: http://localhost:8080/orders/stats")
+	fmt.Println("Car Store API started at http://localhost:8080")
+	fmt.Println("Orders Stats: http://localhost:8080/orders/stats")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }

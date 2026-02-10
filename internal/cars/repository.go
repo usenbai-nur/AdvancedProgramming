@@ -2,6 +2,7 @@ package cars
 
 import (
 	"errors"
+	"sort"
 	"sync"
 	"sync/atomic"
 )
@@ -51,6 +52,8 @@ func (r *Repository) List() []Car {
 	for _, c := range r.items {
 		out = append(out, c)
 	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
 
@@ -68,7 +71,10 @@ func (r *Repository) Update(id int, updateFn func(Car) (Car, error)) (Car, error
 		return Car{}, err
 	}
 
+	// protect system fields
 	updated.ID = id
+	updated.CreatedAt = current.CreatedAt
+
 	r.items[id] = updated
 	return updated, nil
 }
