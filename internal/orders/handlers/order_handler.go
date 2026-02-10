@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type OrderHandler struct {
@@ -15,17 +16,13 @@ func NewOrderHandler(s *services.OrderService) *OrderHandler {
 	return &OrderHandler{service: s}
 }
 
+// CreateOrder - POST /orders
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
-			Message: "invalid body",
+			Message: "invalid JSON body",
 		})
 		return
 	}
@@ -41,22 +38,63 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusCreated, APIResponse{
 		Success: true,
-		Message: "order created",
+		Message: "order created successfully",
 		Data:    order,
 	})
 }
 
-func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		respondJSON(w, http.StatusBadRequest, APIResponse{
+// GetAllOrders - GET /orders
+func (h *OrderHandler) GetAllOrders(w http.ResponseWriter, r *http.Request) {
+	orders, err := h.service.GetAllOrders()
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
-			Message: "invalid id",
+			Message: err.Error(),
 		})
 		return
 	}
 
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Data:    orders,
+	})
+}
+
+// HandleOrderByID - GET/PUT/DELETE /orders/{id}
+func (h *OrderHandler) HandleOrderByID(w http.ResponseWriter, r *http.Request) {
+	// Парсим ID из пути /orders/{id}
+	path := strings.TrimPrefix(r.URL.Path, "/orders/")
+	if path == "" || strings.Contains(path, "/") {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: "not found",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(path)
+	if err != nil || id <= 0 {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "invalid order id",
+		})
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		h.getOrderByID(w, id)
+	case http.MethodPut:
+		h.updateOrderStatus(w, r, id)
+	case http.MethodDelete:
+		h.deleteOrder(w, id)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// getOrderByID - GET /orders/{id}
+func (h *OrderHandler) getOrderByID(w http.ResponseWriter, id int) {
 	order, err := h.service.GetOrder(id)
 	if err != nil {
 		respondJSON(w, http.StatusNotFound, APIResponse{
@@ -72,13 +110,69 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// updateOrderStatus - PUT /orders/{id}
+func (h *OrderHandler) updateOrderStatus(w http.ResponseWriter, r *http.Request, id int) {
+	var req UpdateOrderStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "invalid JSON body",
+		})
+		return
+	}
+
+	order, err := h.service.UpdateStatus(id, req.Status)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "status updated successfully",
+		Data:    order,
+	})
+}
+
+// deleteOrder - DELETE /orders/{id}
+func (h *OrderHandler) deleteOrder(w http.ResponseWriter, id int) {
+	err := h.service.DeleteOrder(id)
+	if err != nil {
+		respondJSON(w, http.StatusNotFound, APIResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, APIResponse{
+		Success: true,
+		Message: "order deleted successfully",
+	})
+}
+
+// GetUserOrders - GET /users/{userId}/orders
 func (h *OrderHandler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.URL.Query().Get("user_id")
-	userID, err := strconv.Atoi(userIDStr)
+	// Парсим /users/{userId}/orders
+	path := strings.TrimPrefix(r.URL.Path, "/users/")
+	parts := strings.Split(path, "/")
+
+	if len(parts) != 2 || parts[1] != "orders" {
+		respondJSON(w, http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "invalid path, expected /users/{id}/orders",
+		})
+		return
+	}
+
+	userID, err := strconv.Atoi(parts[0])
 	if err != nil || userID <= 0 {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
-			Message: "invalid user_id",
+			Message: "invalid user id",
 		})
 		return
 	}
@@ -98,8 +192,9 @@ func (h *OrderHandler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *OrderHandler) GetAllOrders(w http.ResponseWriter, r *http.Request) {
-	orders, err := h.service.GetAllOrders()
+// GetOrderStats - GET /orders/stats
+func (h *OrderHandler) GetOrderStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.service.GetOrderStats()
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, APIResponse{
 			Success: false,
@@ -110,36 +205,22 @@ func (h *OrderHandler) GetAllOrders(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
-		Data:    orders,
+		Data:    stats,
 	})
 }
 
-func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	idStr := r.URL.Query().Get("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
+// SearchOrders - GET /orders/search?q=query
+func (h *OrderHandler) SearchOrders(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
-			Message: "invalid id",
+			Message: "search query required (?q=...)",
 		})
 		return
 	}
 
-	var req UpdateOrderStatusRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondJSON(w, http.StatusBadRequest, APIResponse{
-			Success: false,
-			Message: "invalid body",
-		})
-		return
-	}
-
-	order, err := h.service.UpdateStatus(id, req.Status)
+	orders, err := h.service.SearchOrders(query)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, APIResponse{
 			Success: false,
@@ -150,8 +231,7 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 
 	respondJSON(w, http.StatusOK, APIResponse{
 		Success: true,
-		Message: "status updated",
-		Data:    order,
+		Data:    orders,
 	})
 }
 
