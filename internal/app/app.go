@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"AdvancedProgramming/internal/auth"
 	"AdvancedProgramming/internal/cars"
 	"AdvancedProgramming/internal/infrastructure"
 	"AdvancedProgramming/internal/orders/handlers"
@@ -21,43 +22,54 @@ func Run() {
 
 	mux := http.NewServeMux()
 
-	// Home
+	// Public endpoints
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(
 			w,
 			"Car Store API\nTeam: Nurdaulet, Nurbol, Ehson\n\nEndpoints:\n"+
 				"- GET /health\n"+
-				"- GET/POST /cars\n"+
-				"- GET/PUT/DELETE /cars/{id}\n"+
-				"- GET/POST /orders\n"+
-				"- PUT /orders/status\n"+
+				"- POST /auth/register\n"+
+				"- POST /auth/login\n"+
+				"- GET/POST /cars (protected)\n"+
+				"- GET/PUT/DELETE /cars/{id} (protected)\n"+
+				"- GET/POST /orders (protected)\n"+
+				"- PUT /orders/status (protected)\n"+
 				"\nUI:\n"+
 				"- GET /ui/cars\n"+
-				"- GET /ui/cars/new\n",
+				"- GET /ui/cars/new\n"+
+				"- GET /ui/orders\n"+
+				"- GET /ui/login\n"+
+				"- GET /ui/register\n",
 		)
 	})
 
-	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Server is up and running!"))
 	})
 
-	// Cars (Nurdaulet) - in-memory storage
+	// Auth (public)
+	mux.HandleFunc("/auth/register", auth.Register)
+	mux.HandleFunc("/auth/login", auth.Login)
+
+	// Cars (protected API)
 	carRepo := cars.NewRepository()
 	carService := cars.NewService(carRepo)
 	carHandler := cars.NewHandler(carService)
-	cars.RegisterRoutes(mux, carHandler)
 
-	// Web UI (templates + css)
+	// wrap handlers with middleware (http.Handler)
+	mux.Handle("/cars", auth.AuthMiddleware(http.HandlerFunc(carHandler.Cars)))
+	mux.Handle("/cars/", auth.AuthMiddleware(http.HandlerFunc(carHandler.CarByID)))
+
+	// Web UI (public UI; if you want protect it too, we can wrap /ui/* later)
 	webui.Register(mux, carService)
 
-	// Orders (Nurbol)
+	// Orders (protected API)
 	orderRepo := repositories.NewOrderRepository()
 	orderService := services.NewOrderService(&orderRepo)
 	orderHandler := handlers.NewOrderHandler(orderService)
 
-	mux.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/orders", auth.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			orderHandler.CreateOrder(w, r)
@@ -76,15 +88,15 @@ func Run() {
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	})))
 
-	mux.HandleFunc("/orders/status", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/orders/status", auth.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		orderHandler.UpdateOrderStatus(w, r)
-	})
+	})))
 
 	fmt.Println("Car Store API started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
