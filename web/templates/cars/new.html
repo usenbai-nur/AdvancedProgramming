@@ -1,0 +1,33 @@
+{{ define "cars_new.html" }}
+{{ template "layout.html" . }}
+{{ end }}
+
+{{ define "content" }}
+<h1>Add Car</h1>
+
+{{ if .Error }}
+<div class="alert">{{ .Error }}</div>
+{{ end }}
+
+<form method="post" action="/ui/cars/new" class="form">
+    <label>Brand</label>
+    <input name="brand" placeholder="BMW" required />
+
+    <label>Model</label>
+    <input name="model" placeholder="X5" required />
+
+    <label>Year</label>
+    <input name="year" type="number" placeholder="2022" required />
+
+    <label>Price</label>
+    <input name="price" type="number" placeholder="30000" required />
+
+    <label>Mileage</label>
+    <input name="mileage" type="number" placeholder="20000" required />
+
+    <div class="row">
+        <button class="btn" type="submit">Create</button>
+        <a class="btn btn-secondary" href="/ui/cars">Back</a>
+    </div>
+</form>
+{{ end }}
