@@ -1,0 +1,16 @@
+{{ define "orders_list.html" }}
+{{ template "header" . }}
+<h1>Orders</h1>
+<p>{{ .Note }}</p>
+
+<div class="card">
+    <h3>API Guide</h3>
+    <ul>
+        <li><code>POST /orders</code> — create order (user/admin)</li>
+        <li><code>GET /orders</code> — view all orders (admin)</li>
+        <li><code>PUT /orders/{id}</code> — process order status (admin)</li>
+        <li><code>GET /users/{id}/orders</code> — view orders by user id (admin)</li>
+    </ul>
+</div>
+{{ template "footer" . }}
+{{ end }}
