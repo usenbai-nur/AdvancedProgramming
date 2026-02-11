@@ -1,8 +1,5 @@
 {{ define "cars_new.html" }}
-{{ template "layout.html" . }}
-{{ end }}
-
-{{ define "content" }}
+{{ template "header" . }}
 <h1>Add Car</h1>
 
 {{ if .Error }}
@@ -30,4 +27,5 @@
         <a class="btn btn-secondary" href="/ui/cars">Back</a>
     </div>
 </form>
+{{ template "footer" . }}
 {{ end }}

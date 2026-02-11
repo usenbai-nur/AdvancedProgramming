@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -15,18 +16,31 @@ import (
 
 type OrderRepository struct {
 	nextID int64
+	mu     sync.RWMutex
+	items  map[int]models.Order
 }
 
 func NewOrderRepository() OrderRepository {
-	return OrderRepository{nextID: 0}
+	return OrderRepository{nextID: 0, items: make(map[int]models.Order)}
+}
+
+func (r *OrderRepository) useMemory() bool {
+	return infrastructure.Database == nil
 }
 
 func (r *OrderRepository) Create(order models.Order) (models.Order, error) {
 	order.ID = int(atomic.AddInt64(&r.nextID, 1))
-	order.CreatedAt = time.Now()
-	order.UpdatedAt = time.Now()
+	order.CreatedAt = time.Now().UTC()
+	order.UpdatedAt = order.CreatedAt
 	if order.Status == "" {
 		order.Status = "pending"
+	}
+
+	if r.useMemory() {
+		r.mu.Lock()
+		r.items[order.ID] = order
+		r.mu.Unlock()
+		return order, nil
 	}
 
 	_, err := infrastructure.Database.Collection("orders").InsertOne(context.TODO(), order)
@@ -37,12 +51,21 @@ func (r *OrderRepository) Create(order models.Order) (models.Order, error) {
 }
 
 func (r *OrderRepository) GetByID(id int) (models.Order, error) {
+	if r.useMemory() {
+		r.mu.RLock()
+		order, ok := r.items[id]
+		r.mu.RUnlock()
+		if !ok {
+			return models.Order{}, errors.New("order not found")
+		}
+		return order, nil
+	}
+
 	var order models.Order
 	err := infrastructure.Database.Collection("orders").FindOne(
 		context.TODO(),
 		bson.M{"id": id},
 	).Decode(&order)
-
 	if err != nil {
 		return models.Order{}, errors.New("order not found")
 	}
@@ -50,6 +73,17 @@ func (r *OrderRepository) GetByID(id int) (models.Order, error) {
 }
 
 func (r *OrderRepository) GetAll() ([]models.Order, error) {
+	if r.useMemory() {
+		r.mu.RLock()
+		orders := make([]models.Order, 0, len(r.items))
+		for _, order := range r.items {
+			orders = append(orders, order)
+		}
+		r.mu.RUnlock()
+		sortOrdersByCreatedDesc(orders)
+		return orders, nil
+	}
+
 	cursor, err := infrastructure.Database.Collection("orders").Find(
 		context.TODO(),
 		bson.M{},
@@ -66,6 +100,19 @@ func (r *OrderRepository) GetAll() ([]models.Order, error) {
 }
 
 func (r *OrderRepository) GetByUserID(userID int) ([]models.Order, error) {
+	if r.useMemory() {
+		r.mu.RLock()
+		orders := make([]models.Order, 0)
+		for _, order := range r.items {
+			if order.UserID == userID {
+				orders = append(orders, order)
+			}
+		}
+		r.mu.RUnlock()
+		sortOrdersByCreatedDesc(orders)
+		return orders, nil
+	}
+
 	cursor, err := infrastructure.Database.Collection("orders").Find(
 		context.TODO(),
 		bson.M{"userid": userID},
@@ -79,6 +126,20 @@ func (r *OrderRepository) GetByUserID(userID int) ([]models.Order, error) {
 }
 
 func (r *OrderRepository) UpdateStatus(id int, status string) (models.Order, error) {
+	if r.useMemory() {
+		r.mu.Lock()
+		order, ok := r.items[id]
+		if !ok {
+			r.mu.Unlock()
+			return models.Order{}, errors.New("order not found")
+		}
+		order.Status = status
+		order.UpdatedAt = time.Now().UTC()
+		r.items[id] = order
+		r.mu.Unlock()
+		return order, nil
+	}
+
 	var order models.Order
 	err := infrastructure.Database.Collection("orders").FindOne(
 		context.TODO(), bson.M{"id": id},
@@ -88,7 +149,7 @@ func (r *OrderRepository) UpdateStatus(id int, status string) (models.Order, err
 	}
 
 	order.Status = status
-	order.UpdatedAt = time.Now()
+	order.UpdatedAt = time.Now().UTC()
 	_, err = infrastructure.Database.Collection("orders").ReplaceOne(
 		context.TODO(), bson.M{"id": id}, order,
 	)
@@ -96,6 +157,16 @@ func (r *OrderRepository) UpdateStatus(id int, status string) (models.Order, err
 }
 
 func (r *OrderRepository) Delete(id int) error {
+	if r.useMemory() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if _, ok := r.items[id]; !ok {
+			return errors.New("order not found")
+		}
+		delete(r.items, id)
+		return nil
+	}
+
 	result, err := infrastructure.Database.Collection("orders").DeleteOne(
 		context.TODO(),
 		bson.M{"id": id},
@@ -109,10 +180,20 @@ func (r *OrderRepository) Delete(id int) error {
 	return nil
 }
 
-// НОВЫЕ МЕТОДЫ:
-
-// GetByStatus - получить заказы по статусу
 func (r *OrderRepository) GetByStatus(status string) ([]models.Order, error) {
+	if r.useMemory() {
+		r.mu.RLock()
+		orders := make([]models.Order, 0)
+		for _, order := range r.items {
+			if order.Status == status {
+				orders = append(orders, order)
+			}
+		}
+		r.mu.RUnlock()
+		sortOrdersByCreatedDesc(orders)
+		return orders, nil
+	}
+
 	cursor, err := infrastructure.Database.Collection("orders").Find(
 		context.TODO(),
 		bson.M{"status": status},
@@ -125,8 +206,18 @@ func (r *OrderRepository) GetByStatus(status string) ([]models.Order, error) {
 	return orders, cursor.All(context.TODO(), &orders)
 }
 
-// GetRecent - получить последние N заказов
 func (r *OrderRepository) GetRecent(limit int) ([]models.Order, error) {
+	if r.useMemory() {
+		all, err := r.GetAll()
+		if err != nil {
+			return nil, err
+		}
+		if len(all) > limit {
+			all = all[:limit]
+		}
+		return all, nil
+	}
+
 	cursor, err := infrastructure.Database.Collection("orders").Find(
 		context.TODO(),
 		bson.M{},
@@ -139,17 +230,13 @@ func (r *OrderRepository) GetRecent(limit int) ([]models.Order, error) {
 	return orders, cursor.All(context.TODO(), &orders)
 }
 
-// Search - поиск по комментарию
 func (r *OrderRepository) Search(query string) ([]models.Order, error) {
-	var orders []models.Order
-
-	// Получаем все заказы
 	allOrders, err := r.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	// Фильтруем по комментарию (простой поиск)
+	var orders []models.Order
 	for _, order := range allOrders {
 		if strings.Contains(strings.ToLower(order.Comment), query) {
 			orders = append(orders, order)
@@ -157,4 +244,14 @@ func (r *OrderRepository) Search(query string) ([]models.Order, error) {
 	}
 
 	return orders, nil
+}
+
+func sortOrdersByCreatedDesc(orders []models.Order) {
+	for i := 0; i < len(orders)-1; i++ {
+		for j := i + 1; j < len(orders); j++ {
+			if orders[j].CreatedAt.After(orders[i].CreatedAt) {
+				orders[i], orders[j] = orders[j], orders[i]
+			}
+		}
+	}
 }

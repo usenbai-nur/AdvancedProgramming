@@ -1,0 +1,26 @@
+{{ define "auth_login.html" }}
+{{ template "header" . }}
+<h1>Login</h1>
+<p class="muted">Guests can browse, registered users can create orders, admins manage catalog and orders.</p>
+
+{{ if .Error }}
+<div class="alert">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+<div class="ok">{{ .Success }}</div>
+{{ end }}
+{{ if .Token }}
+<div class="code-block">JWT: {{ .Token }}</div>
+{{ end }}
+
+<form method="post" action="/ui/login" class="form">
+    <label>Username</label>
+    <input name="username" required />
+
+    <label>Password</label>
+    <input name="password" type="password" required />
+
+    <button class="btn" type="submit">Login</button>
+</form>
+{{ template "footer" . }}
+{{ end }}

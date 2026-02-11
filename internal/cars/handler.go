@@ -22,7 +22,8 @@ func (h *Handler) Cars(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		list := h.svc.List()
-		httpx.WriteJSON(w, http.StatusOK, list)
+		filtered := filterCars(list, r)
+		httpx.WriteJSON(w, http.StatusOK, filtered)
 		return
 
 	case http.MethodPost:
@@ -124,4 +125,37 @@ func (h *Handler) CarByID(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.Err("method_not_allowed", "Method not allowed"))
 		return
 	}
+}
+
+func filterCars(cars []Car, r *http.Request) []Car {
+	brand := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("brand")))
+	model := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("model")))
+	status := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status")))
+	minPrice, _ := strconv.Atoi(r.URL.Query().Get("min_price"))
+	maxPrice, _ := strconv.Atoi(r.URL.Query().Get("max_price"))
+	year, _ := strconv.Atoi(r.URL.Query().Get("year"))
+
+	out := make([]Car, 0, len(cars))
+	for _, car := range cars {
+		if brand != "" && !strings.Contains(strings.ToLower(car.Brand), brand) {
+			continue
+		}
+		if model != "" && !strings.Contains(strings.ToLower(car.Model), model) {
+			continue
+		}
+		if status != "" && strings.ToLower(string(car.Status)) != status {
+			continue
+		}
+		if minPrice > 0 && car.Price < minPrice {
+			continue
+		}
+		if maxPrice > 0 && car.Price > maxPrice {
+			continue
+		}
+		if year > 0 && car.Year != year {
+			continue
+		}
+		out = append(out, car)
+	}
+	return out
 }

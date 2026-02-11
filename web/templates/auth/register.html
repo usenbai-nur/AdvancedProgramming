@@ -1,0 +1,32 @@
+{{ define "auth_register.html" }}
+{{ template "header" . }}
+<h1>Register</h1>
+<p class="muted">Default role is <b>user</b>. To create an admin, provide admin role and valid admin key.</p>
+
+{{ if .Error }}
+<div class="alert">{{ .Error }}</div>
+{{ end }}
+{{ if .Success }}
+<div class="ok">{{ .Success }}</div>
+{{ end }}
+
+<form method="post" action="/ui/register" class="form">
+    <label>Username</label>
+    <input name="username" required />
+
+    <label>Password</label>
+    <input name="password" type="password" required />
+
+    <label>Role</label>
+    <select name="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+    </select>
+
+    <label>Admin key (only for admin role)</label>
+    <input name="admin_key" />
+
+    <button class="btn" type="submit">Register</button>
+</form>
+{{ template "footer" . }}
+{{ end }}

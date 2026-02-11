@@ -2,9 +2,9 @@ package infrastructure
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,32 +15,38 @@ var Client *mongo.Client
 var Database *mongo.Database
 
 func InitDatabase() error {
-	_ = godotenv.Load() // Пытаемся загрузить .env
+	_ = godotenv.Load()
 
 	uri := os.Getenv("MONGODB_URI")
 	if uri == "" {
-		return fmt.Errorf("MONGODB_URI not found in environment or .env file")
+		uri = "mongodb://localhost:27017"
+		log.Printf("MONGODB_URI is not set, trying default %s", uri)
 	}
 
-	clientOptions := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	clientOptions := options.Client().ApplyURI(uri).SetServerSelectionTimeout(2 * time.Second)
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		return err
+		log.Printf("Mongo connect failed: %v. Continuing with in-memory order storage.", err)
+		return nil
 	}
 
-	if err := client.Ping(context.TODO(), nil); err != nil {
-		return err
+	if err := client.Ping(ctx, nil); err != nil {
+		log.Printf("Mongo ping failed: %v. Continuing with in-memory order storage.", err)
+		return nil
 	}
 
 	Client = client
 	Database = client.Database("carstore")
-	log.Println("Connected to MongoDB Atlas")
+	log.Println("Connected to MongoDB")
 	return nil
 }
 
 func CloseDatabase() {
 	if Client != nil {
-		Client.Disconnect(context.TODO())
+		_ = Client.Disconnect(context.TODO())
 		log.Println("🔌 MongoDB connection closed")
 	}
 }
